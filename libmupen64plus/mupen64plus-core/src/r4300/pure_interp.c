@@ -25,6 +25,7 @@
 #include "api/m64p_types.h"
 #include "api/callbacks.h"
 #include "api/debugger.h"
+#include "gzm/gzm.h"
 #include "memory/memory.h"
 #include "main/rom.h"
 #include "osal/preproc.h"
@@ -47,9 +48,22 @@ static void prefetch(void);
 
 #define PCADDR interp_PC.addr
 #define ADD_TO_PC(x) interp_PC.addr += x*4;
-#define DECLARE_INSTRUCTION(name) static void name(void)
-#define DECLARE_JUMP(name, destination, condition, link, likely, cop1) \
+#define DECLARE_INSTRUCTION(name) \
+   static void name##_(void); \
    static void name(void) \
+   { \
+      gzm_interp_hook(PC); \
+      name##_(); \
+   } \
+   static void name##_(void)
+#define DECLARE_JUMP(name, destination, condition, link, likely, cop1) \
+   static void name##_(void); \
+   static void name(void) \
+   { \
+      gzm_interp_hook(PC); \
+      name##_(); \
+   } \
+   static void name##_(void) \
    { \
       const int take_jump = (condition); \
       const unsigned int jump_target = (destination); \
@@ -83,6 +97,7 @@ static void prefetch(void);
    } \
    static void name##_IDLE(void) \
    { \
+      gzm_interp_hook(PC); \
       const int take_jump = (condition); \
       int skip; \
       if (cop1 && check_cop1_unusable()) return; \
@@ -91,9 +106,9 @@ static void prefetch(void);
          update_count(); \
          skip = next_interupt - Count; \
          if (skip > 3) Count += (skip & 0xFFFFFFFC); \
-         else name(); \
+         else name##_(); \
       } \
-      else name(); \
+      else name##_(); \
    }
 #define CHECK_MEMORY()
 

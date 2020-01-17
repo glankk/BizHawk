@@ -25,6 +25,7 @@
 #include "api/m64p_types.h"
 #include "api/callbacks.h"
 #include "api/debugger.h"
+#include "gzm/gzm.h"
 #include "memory/memory.h"
 #include "main/main.h"
 #include "main/rom.h"
@@ -80,10 +81,23 @@ int rounding_mode = 0x33F, trunc_mode = 0xF3F, round_mode = 0x33F,
 
 #define PCADDR PC->addr
 #define ADD_TO_PC(x) PC += x;
-#define DECLARE_INSTRUCTION(name) static void name(void)
+#define DECLARE_INSTRUCTION(name) \
+   static void name##_(void); \
+   static void name(void) \
+   { \
+      gzm_interp_hook(PC); \
+      name##_(); \
+   } \
+   static void name##_(void)
 
 #define DECLARE_JUMP(name, destination, condition, link, likely, cop1) \
+   static void name##_(void); \
    static void name(void) \
+   { \
+      gzm_interp_hook(PC); \
+      name##_(); \
+   } \
+   static void name##_(void) \
    { \
       const int take_jump = (condition); \
       const unsigned int jump_target = (destination); \
@@ -117,6 +131,7 @@ int rounding_mode = 0x33F, trunc_mode = 0xF3F, round_mode = 0x33F,
    } \
    static void name##_OUT(void) \
    { \
+      gzm_interp_hook(PC); \
       const int take_jump = (condition); \
       const unsigned int jump_target = (destination); \
       long long int *link_register = (link); \
@@ -149,6 +164,7 @@ int rounding_mode = 0x33F, trunc_mode = 0xF3F, round_mode = 0x33F,
    } \
    static void name##_IDLE(void) \
    { \
+      gzm_interp_hook(PC); \
       const int take_jump = (condition); \
       int skip; \
       if (cop1 && check_cop1_unusable()) return; \
@@ -157,9 +173,9 @@ int rounding_mode = 0x33F, trunc_mode = 0xF3F, round_mode = 0x33F,
          update_count(); \
          skip = next_interupt - Count; \
          if (skip > 3) Count += (skip & 0xFFFFFFFC); \
-         else name(); \
+         else name##_(); \
       } \
-      else name(); \
+      else name##_(); \
    }
 
 #define CHECK_MEMORY() \
@@ -749,6 +765,8 @@ void free_blocks(void)
 /* this hard reset function simulates the boot-up state of the R4300 CPU */
 void r4300_reset_hard(void)
 {
+    gzm_record_reset();
+
     unsigned int i;
 
     // clear r4300 registers and TLB entries
@@ -977,6 +995,8 @@ static void dynarec_setup_code(void)
 
 void r4300_execute(void (*startcb)(void))
 {
+  gzm_start();
+
 #if defined(COUNT_INSTR) || (defined(DYNAREC) && defined(PROFILE_R4300))
     unsigned int i;
 #endif
@@ -1106,6 +1126,8 @@ void r4300_execute(void (*startcb)(void))
         }
     }
 #endif
+
+  gzm_stop();
 }
 
 EXPORT void CALL GetRegisters(unsigned char * dest)

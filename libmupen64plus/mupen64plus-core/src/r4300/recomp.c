@@ -31,6 +31,7 @@
 
 #include "api/m64p_types.h"
 #include "api/callbacks.h"
+#include "gzm/gzm.h"
 #include "memory/memory.h"
 
 #include "recomp.h"
@@ -2243,7 +2244,7 @@ void init_block(precomp_block *block)
       if (r4300emu == CORE_DYNAREC) gendebug();
 #endif
       RNOTCOMPILED();
-      if (r4300emu == CORE_DYNAREC) recomp_func();
+      if (r4300emu == CORE_DYNAREC) { gzm_recomp_hook(dst); recomp_func(); }
     }
 #if defined(PROFILE_R4300)
   fclose(pfProfile);
@@ -2417,7 +2418,7 @@ void recompile_block(int *source, precomp_block *block, unsigned int func)
 #endif
     recomp_func = NULL;
     recomp_ops[((src >> 26) & 0x3F)]();
-    if (r4300emu == CORE_DYNAREC) recomp_func();
+    if (r4300emu == CORE_DYNAREC) { gzm_recomp_hook(dst); recomp_func(); }
     dst = block->block + i;
 
     /*if ((dst+1)->ops != NOTCOMPILED && !delay_slot_compiled &&
@@ -2464,7 +2465,7 @@ void recompile_block(int *source, precomp_block *block, unsigned int func)
     if (r4300emu == CORE_DYNAREC) gendebug();
 #endif
     RFIN_BLOCK();
-    if (r4300emu == CORE_DYNAREC) recomp_func();
+    if (r4300emu == CORE_DYNAREC) { gzm_recomp_hook(dst); recomp_func(); }
     i++;
     if (i < length-1+(length>>2)) // useful when last opcode is a jump
       {
@@ -2476,7 +2477,7 @@ void recompile_block(int *source, precomp_block *block, unsigned int func)
          if (r4300emu == CORE_DYNAREC) gendebug();
 #endif
          RFIN_BLOCK();
-         if (r4300emu == CORE_DYNAREC) recomp_func();
+         if (r4300emu == CORE_DYNAREC) { gzm_recomp_hook(dst); recomp_func(); }
          i++;
       }
      }
@@ -2594,12 +2595,12 @@ void recompile_opcode(void)
 #endif
      recomp_func = NULL;
      recomp_ops[((src >> 26) & 0x3F)]();
-     if (r4300emu == CORE_DYNAREC) recomp_func();
+     if (r4300emu == CORE_DYNAREC) { gzm_recomp_hook(dst); recomp_func(); }
    }
    else
    {
      RNOP();
-     if (r4300emu == CORE_DYNAREC) recomp_func();
+     if (r4300emu == CORE_DYNAREC) { gzm_recomp_hook(dst); recomp_func(); }
    }
    delay_slot_compiled = 2;
 }
